@@ -2,10 +2,10 @@ from ultralytics import YOLO
 import cv2
 
 # Modeli yükle
-# model8Nano = YOLO("Models/yolov8n-face.pt")
-modelFineTuning = YOLO("Models/yolov8n-face-fine-tuning.pt")
-model11Small = YOLO("Models/yolov11s-face.pt")#Recommend
-# model8Medium = YOLO("Models/yolov8m-face.pt")
+# model8Nano = YOLO("models/yolov8n-face.pt")
+modelFineTuning = YOLO("models/yolov8n-face-fine-tuning.pt")
+model11Small = YOLO("models/yolov11s-face.pt")#Recommend
+# model8Medium = YOLO("models/yolov8m-face.pt")
 cap = cv2.VideoCapture(0)
 
 while cap.isOpened():
@@ -26,7 +26,7 @@ while cap.isOpened():
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
     # Sonuçları ekranda göster
-    cv2.imshow("YOLOv8 Face Detection", frame)
+    cv2.imshow("YOLOv8 Face detection", frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
