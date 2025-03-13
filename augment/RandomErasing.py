@@ -2,39 +2,33 @@ import cv2
 import numpy as np
 import random
 
-# Fotoğrafı yükle
-image_path = "../efefoto.jpeg"  # Fotoğrafın dosya yolunu belirtin
-image = cv2.imread(image_path)
+class RandomErasing:
+    def __init__(self, erase_ratio=0.02, erase_color=0, num_patches=1):
 
-# Random Erasing fonksiyonu
-def random_erasing(image, erase_ratio=0.02):
-    h, w, _ = image.shape
+        if not (0 < erase_ratio < 1):
+            raise ValueError("erase_ratio değeri 0 ile 1 arasında olmalıdır!!!!!!!!")
 
-    # Silinecek bölgenin boyutlarını hesapla
-    erase_area = int(h * w * erase_ratio)  # Silinecek toplam piksel sayısı
-    erase_width = int(np.sqrt(erase_area))  # Kare şeklinde bir bölge silmek için genişlik
-    erase_height = erase_width
+        self.erase_ratio = erase_ratio
+        self.erase_color = erase_color
+        self.num_patches = num_patches
 
-    # Rastgele bir başlangıç noktası belirle
-    start_x = random.randint(0, w - erase_width)
-    start_y = random.randint(0, h - erase_height)
+    def apply_erasing(self, image_path, output_path):
+        image = cv2.imread(image_path)
+        if image is None:
+            print(f"Hata: {image_path} yüklenemedi, dosya yolunu kontrol edin.")
+            return
 
-    # Bölgeyi siyah renkle doldur (veya başka bir renk seçebilirsiniz)
-    image[start_y:start_y + erase_height, start_x:start_x + erase_width] = 0
+        h, w, _ = image.shape
 
-    return image
+        for _ in range(self.num_patches):
+            erase_area = int(h * w * self.erase_ratio)
+            erase_width = int(np.sqrt(erase_area))
+            erase_height = erase_width
 
-# Random Erasing uygula (hafif silme için küçük bir erase_ratio kullan)
-erase_ratio = 0.005  # Görüntünün %2'sini sil
-erased_image = random_erasing(image, erase_ratio)
+            start_x = random.randint(0, w - erase_width)
+            start_y = random.randint(0, h - erase_height)
 
-# İşlenmiş fotoğrafı kaydet
-output_path = "RandomErasing2.jpg"
-cv2.imwrite(output_path, erased_image)
+            image[start_y:start_y + erase_height, start_x:start_x + erase_width] = self.erase_color
 
-print(f"Fotoğrafa Random Erasing uygulandı ve kaydedildi: {output_path}")
-
-# (Opsiyonel) İşlenmiş fotoğrafı ekranda göster
-cv2.imshow("Random Erased Image", erased_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+        cv2.imwrite(output_path, image)
+        print(f"Random Erasing uygulandı ve kaydedildi: {output_path}")

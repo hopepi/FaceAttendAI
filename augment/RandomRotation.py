@@ -2,32 +2,31 @@ import cv2
 import numpy as np
 import random
 
-# Fotoğrafı yükle
-image_path = "../efefoto.jpeg"  # Fotoğrafın dosya yolunu belirtin
-image = cv2.imread(image_path)
+class RandomRotation:
+    def __init__(self, angle_range=(-15, 15), border_mode=cv2.BORDER_REFLECT):
+        if not (isinstance(angle_range, tuple) and len(angle_range) == 2):
+            raise ValueError("angle_range bir çift min, max değerinden oluşmalıdır.")
 
-# Rastgele bir döndürme açısı belirle (örneğin -15 ile +15 derece arasında)
-angle = random.uniform(-15, 15)  # -15 ile +15 derece arasında rastgele bir açı
+        self.angle_range = angle_range
+        self.border_mode = border_mode
 
-# Fotoğrafın boyutlarını al
-(h, w) = image.shape[:2]
+    def apply_rotation(self, image_path, output_path):
+        image = cv2.imread(image_path)
+        if image is None:
+            print(f"Hata: {image_path} yüklenemedi, dosya yolunu kontrol edin.")
+            return
 
-# Döndürme işlemi için merkez noktasını belirle
-center = (w // 2, h // 2)
+        (h, w) = image.shape[:2]
 
-# Döndürme matrisini oluştur
-rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+        # Rastgele bir açı seç
+        angle = random.uniform(*self.angle_range)
+        center = (w // 2, h // 2)
 
-# Döndürülmüş fotoğrafı oluştur
-rotated_image = cv2.warpAffine(image, rotation_matrix, (w, h), borderMode=cv2.BORDER_REFLECT)
+        # Döndürme matrisini oluştur
+        rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
 
-# Döndürülmüş fotoğrafı kaydet
-output_path = "../RandomRotation.jpg"
-cv2.imwrite(output_path, rotated_image)
+        # Görüntüyü döndür
+        rotated_image = cv2.warpAffine(image, rotation_matrix, (w, h), borderMode=self.border_mode)
 
-print(f"Fotoğraf {angle:.2f} derece döndürüldü ve kaydedildi: {output_path}")
-
-# (Opsiyonel) Döndürülmüş fotoğrafı ekranda göster
-cv2.imshow("Rotated Image", rotated_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+        cv2.imwrite(output_path, rotated_image)
+        print(f"Fotoğraf {angle:.2f} derece döndürüldü ve kaydedildi: {output_path}")

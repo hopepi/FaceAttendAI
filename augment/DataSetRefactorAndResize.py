@@ -1,39 +1,38 @@
 import os
-import shutil
 from PIL import Image
 
-def veri_setini_farkli_yere_olustur(kaynak_dizin, hedef_dizin):
+class DatasetOrganizer:
+    def __init__(self, source_dir=None, target_dir=None, image_size=(160, 160)):
 
-    desteklenen_formatlar = ['.jpg', '.jpeg', '.png']
+        if source_dir is None or target_dir is None:
+            raise ValueError("Hem kaynak yolu hem de çıkış yolu parametreleri girilmelidir.")
 
-    dosyalar = os.listdir(kaynak_dizin)
+        self.source_dir = source_dir
+        self.target_dir = target_dir
+        self.image_size = image_size
+        self.supported_formats = ['.jpg', '.jpeg', '.png']
 
-    for dosya in dosyalar:
+        if not os.path.exists(self.target_dir):
+            os.makedirs(self.target_dir)
 
-        dosya_yolu = os.path.join(kaynak_dizin, dosya)
+    def organize_dataset(self):
+        files = os.listdir(self.source_dir)
 
-        dosya_uzantisi = os.path.splitext(dosya)[1].lower()
+        for file in files:
+            file_path = os.path.join(self.source_dir, file)
+            file_extension = os.path.splitext(file)[1].lower()
 
-        if os.path.isfile(dosya_yolu) and dosya_uzantisi in desteklenen_formatlar:
+            if os.path.isfile(file_path) and file_extension in self.supported_formats:
+                folder_name = os.path.splitext(file)[0]
+                folder_path = os.path.join(self.target_dir, folder_name)
 
-            klasor_ismi = os.path.splitext(dosya)[0]
-            klasor_yolu = os.path.join(hedef_dizin, klasor_ismi)
+                if not os.path.exists(folder_path):
+                    os.makedirs(folder_path)
 
-            if not os.path.exists(klasor_yolu):
-                os.makedirs(klasor_yolu)
+                new_file_path = os.path.join(folder_path, file)
 
-            yeni_dosya_yolu = os.path.join(klasor_yolu, dosya)
+                with Image.open(file_path) as img:
+                    img = img.resize(self.image_size)
+                    img.save(new_file_path)
 
-            with Image.open(dosya_yolu) as img:
-                img = img.resize((160, 160))
-                img.save(yeni_dosya_yolu)
-
-            print(f"{dosya} dosyası 160x160 boyutuna dönüştürüldü ve {klasor_yolu} klasörüne kopyalandı.")
-
-kaynak_dizin = r"C:\Users\ingin\OneDrive\Masaüstü\1"
-hedef_dizin = r"C:\Users\ingin\OneDrive\Belgeler\Sınıf dataset"
-
-if not os.path.exists(hedef_dizin):
-    os.makedirs(hedef_dizin)
-
-veri_setini_farkli_yere_olustur(kaynak_dizin, hedef_dizin)
+                print(f"{file} resized to {self.image_size} and saved in {folder_path}")

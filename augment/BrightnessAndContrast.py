@@ -1,24 +1,18 @@
 import cv2
-import numpy as np
 
-# Fotoğrafı yükle
-image_path = "../efefoto.jpeg"  # Fotoğrafın dosya yolunu belirtin
-image = cv2.imread(image_path)
+class ImageAdjuster:
+    def __init__(self, alpha=1.5, beta=30):
+        self.alpha = alpha
+        self.beta = beta
 
-# Parlaklık ve kontrast değerlerini belirle
-alpha = 1.5  # Kontrast kontrolü (1.0 orijinal, 1.5 artırılmış kontrast)
-beta = 30    # Parlaklık kontrolü (0 orijinal, pozitif değerler parlaklık artırır)
+    def adjust_image(self, image_path, output_path):
 
-# Parlaklık ve kontrast ayarını uygula
-adjusted_image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
+        image = cv2.imread(image_path)
+        if image is None:
+            print(f"Hata: {image_path} yüklenemedi!")
+            return
 
-# Değiştirilmiş fotoğrafı kaydet
-output_path = "fotoğraf_parlaklik_kontrast_opencv.jpg"
-cv2.imwrite(output_path, adjusted_image)
+        adjusted_image = cv2.convertScaleAbs(image, alpha=self.alpha, beta=self.beta)
+        cv2.imwrite(output_path, adjusted_image)
 
-print(f"Fotoğraf kaydedildi: {output_path}")
-
-# (Opsiyonel) Fotoğrafı ekranda göster
-cv2.imshow("Adjusted Image", adjusted_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+        print(f"Parlaklık & Kontrast ayarlandı ve kaydedildi: {output_path}")

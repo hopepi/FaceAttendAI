@@ -1,19 +1,16 @@
 import cv2
 
-# Fotoğrafı yükle
-image_path = "../efefoto.jpeg"  # Fotoğrafın dosya yolunu belirtin
-image = cv2.imread(image_path)
+class GrayscaleConverter:
+    def __init__(self):
+        pass
 
-# Fotoğrafı Grayscale (Siyah-Beyaz) formatına dönüştür
-gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    def convert_to_grayscale(self, image_path, output_path):
+        image = cv2.imread(image_path)
+        if image is None:
+            print(f"Hata: {image_path} yüklenemedi, dosya yolunu kontrol edin!!!!!!!!")
+            return
 
-# Grayscale fotoğrafı kaydet
-output_path = "../Grayscale.jpg"
-cv2.imwrite(output_path, gray_image)
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        cv2.imwrite(output_path, gray_image)
 
-print(f"Fotoğraf Siyah-Beyaz'a dönüştürüldü ve kaydedildi: {output_path}")
-
-# (Opsiyonel) Grayscale fotoğrafı ekranda göster
-cv2.imshow("Grayscale Image", gray_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+        print(f"Fotoğraf Siyah-Beyaza dönüştürüldü ve kaydedildi: {output_path}")

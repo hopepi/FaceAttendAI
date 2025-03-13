@@ -1,21 +1,20 @@
 import cv2
-import numpy as np
 
-# Fotoğrafı yükle
-image_path = "../efefoto.jpeg"  # Fotoğrafın dosya yolunu belirtin
-image = cv2.imread(image_path)
+class GaussianBlurProcessor:
+    def __init__(self, kernel_size=(15, 15)):
 
-# Gaussian Blur uygula
-kernel_size = (15, 15)  # Bulanıklaştırma çekirdeği boyutu (tek sayılar olmalı)
-blurred_image = cv2.GaussianBlur(image, kernel_size, sigmaX=0)
+        if kernel_size[0] % 2 == 0 or kernel_size[1] % 2 == 0:
+            raise ValueError("Kernel boyutu tek sayı olmalıdır!!!!!!!!!!!")
 
-# Bulanıklaştırılmış fotoğrafı kaydet
-output_path = "../GaussianBlur.jpg"
-cv2.imwrite(output_path, blurred_image)
+        self.kernel_size = kernel_size
 
-print(f"Fotoğrafa Gaussian Blur uygulandı ve kaydedildi: {output_path}")
+    def apply_blur(self, image_path, output_path):
+        image = cv2.imread(image_path)
+        if image is None:
+            print(f"Hata: {image_path} yüklenemedi!!!!!!!!")
+            return
 
-# (Opsiyonel) Bulanıklaştırılmış fotoğrafı ekranda göster
-cv2.imshow("Blurred Image", blurred_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+        blurred_image = cv2.GaussianBlur(image, self.kernel_size, sigmaX=0)
+        cv2.imwrite(output_path, blurred_image)
+
+        print(f"Gaussian Blur uygulandı ve kaydedildi: {output_path}")

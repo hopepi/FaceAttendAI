@@ -5,7 +5,7 @@ from detection.YoloDetector import YOLODetector
 from virtualZoom.VirtualZoom import VirtualZoom
 
 def main():
-    cap = cv2.VideoCapture("video.mp4")
+    cap = cv2.VideoCapture("video2.mp4")
 
     detector = YOLODetector("../models/yolov11s-face.pt")
     tracker = FaceTracker()

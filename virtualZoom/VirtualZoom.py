@@ -10,7 +10,6 @@ class VirtualZoom:
         self.intervals = {}
         self.last_saved_frame = {}
         self.ss_per_id = {}
-
         self.max_frame_gap = fps
         self.max_ss_per_id = 20
 
