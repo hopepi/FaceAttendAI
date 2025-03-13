@@ -11,7 +11,9 @@ class VirtualZoom:
         self.last_saved_frame = {}
         self.ss_per_id = {}
         self.max_frame_gap = fps
-        self.max_ss_per_id = 20
+        self.max_ss_per_id = 20  # Maksimum kaç tane SS alınabilir
+        self.reset_wait_time = 150  # SS sınırına ulaştıktan sonra kaç frame bekleyecek (~5 saniye @30FPS)
+        self.reset_frame_count = {}  # Her ID için sıfırlama zamanlarını takip eden sözlük
 
     def detect_blur(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -25,15 +27,25 @@ class VirtualZoom:
             self.intervals[track_id] = 5
             self.last_saved_frame[track_id] = 0
             self.ss_per_id[track_id] = 0
+            self.reset_frame_count[track_id] = 0  # Reset için zaman tutucu
 
         self.frame_counts[track_id] += 1
 
+        # Eğer maksimum SS alındıysa bekleme sürecine gir
         if self.ss_per_id[track_id] >= self.max_ss_per_id:
-            print(f"[Frame {current_frame}] [ID {track_id}] Maksimum SS limitine ulaşıldı yeni SS alınmıyor")
-            return None
+            self.reset_frame_count[track_id] += 1
+            print(
+                f"[Frame {current_frame}] [ID {track_id}] SS limiti aşıldı. {self.reset_frame_count[track_id]}/{self.reset_wait_time} frame bekleniyor.")
+
+            # Eğer bekleme süresi dolduysa SS sayısını sıfırla ve tekrar SS almaya başla
+            if self.reset_frame_count[track_id] >= self.reset_wait_time:
+                self.ss_per_id[track_id] = 0
+                self.reset_frame_count[track_id] = 0
+                print(f"[Frame {current_frame}] [ID {track_id}] SS limiti sıfırlandı, tekrar kayıt alınabilir.")
+
+            return None  # Bekleme sürecindeyken SS almayı durdur
 
         print(f"[Frame {current_frame}] [ID {track_id}] Bbox: {bbox}")
-
 
         x1, y1, x2, y2 = map(int, bbox)
         face_area = (x2 - x1) * (y2 - y1)
@@ -69,11 +81,12 @@ class VirtualZoom:
             self.blur_thresholds[track_id] = max(18, min(30, dynamic_blur_threshold))
 
             if blur_value < self.blur_thresholds[track_id] and not force_save:
-                print(f"[Frame {current_frame}] [ID {track_id}] Yüz bulanık embedding çıkarılmıyor")
+                print(f"[Frame {current_frame}] [ID {track_id}] Yüz bulanık, embedding çıkarılmıyor")
                 return None
 
             self.last_saved_frame[track_id] = current_frame
             self.ss_per_id[track_id] += 1
+            self.reset_frame_count[track_id] = 0  # SS alındığında bekleme sürecini sıfırla
 
             return zoom_face
 
