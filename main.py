@@ -1,18 +1,53 @@
 import cv2
 import numpy as np
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from deepface import DeepFace
 from sortAlgorithm.Tracking import FaceTracker
 from detection.YoloDetector import YOLODetector
 from virtualZoom.VirtualZoom import VirtualZoom
 
 # Veritabanı klasörü
-db_path = r"C:\Users\umutk\OneDrive\Belgeler\fasas\dataset"
+db_path = r"C:\Users\umutk\OneDrive\Belgeler\dataset"
 
-# Tanınan yüzleri saklayan sözlük
 recognized_faces = {}
 face_center = {}
 last_update_frame = {}
-previous_track_id = {}
+processing_faces = set()
+
+lock = threading.Lock()
+
+executor = ThreadPoolExecutor(max_workers=4)
+
+THRESHOLD = 0.5
+
+
+def recognize_face(zoomed_face, track_id, current_frame, x1, y1, x2, y2):
+    global recognized_faces, last_update_frame, face_center, processing_faces
+
+    try:
+        result = DeepFace.find(zoomed_face, db_path=db_path, model_name="Facenet", enforce_detection=False)
+        identity = "Bilinmiyor"
+
+        if len(result) > 0 and not result[0].empty:
+            min_distance = result[0]["distance"][0]
+
+            if min_distance < THRESHOLD:
+                identity = result[0]["identity"][0].split("\\")[-2]
+            else:
+                identity = "Bilinmiyor"
+
+        with lock:
+            recognized_faces[track_id] = identity
+            last_update_frame[track_id] = current_frame
+            face_center[track_id] = ((x1 + x2) // 2, (y1 + y2) // 2)
+            processing_faces.discard(track_id)
+
+    except Exception as e:
+        with lock:
+            recognized_faces[track_id] = "Hata"
+            processing_faces.discard(track_id)
+
 
 def main():
     cap = cv2.VideoCapture(0)
@@ -33,6 +68,7 @@ def main():
 
         frame = cv2.resize(frame, (width, height))
         original_frame = frame.copy()
+        frame_h, frame_w, _ = frame.shape
 
         detections = detector.detect(frame)
         tracked_objects = tracker.update(detections)
@@ -47,50 +83,39 @@ def main():
                         break
                 id_map[track_id] = (x1, y1)
 
-            # Zoom ile yüzü al
+            margin = 20
+            x1 = max(0, x1 - margin)
+            y1 = max(0, y1 - margin)
+            x2 = min(frame_w, x2 + margin)
+            y2 = min(frame_h, y2 + margin)
+
             zoomed_face = zoom.get_zoomed_face(original_frame, (x1, y1, x2, y2), track_id, current_frame)
 
-            # Eğer track_id daha önce tanınmamışsa, "Bilinmiyor" olarak ayarla
             if track_id not in recognized_faces:
                 recognized_faces[track_id] = "Bilinmiyor"
 
-            # Eğer zoomed_face boş değilse ve belirli koşullar sağlanıyorsa tahmin yap
-            if zoomed_face is not None and (
-                    track_id not in previous_track_id or
-                    track_id != previous_track_id.get(track_id, -1) or
-                    (current_frame - last_update_frame.get(track_id, 0)) > 50 or
-                    np.linalg.norm(
-                        np.array(face_center.get(track_id, (0, 0))) - np.array([(x1 + x2) // 2, (y1 + y2) // 2])) > 30):
+            if zoomed_face is not None and track_id not in processing_faces:
+                if (
+                        track_id not in last_update_frame or
+                        (current_frame - last_update_frame[track_id]) > 50 or
+                        np.linalg.norm(np.array(face_center.get(track_id, (0, 0))) - np.array(
+                            [(x1 + x2) // 2, (y1 + y2) // 2])) > 30
+                ):
+                    processing_faces.add(track_id)
+                    executor.submit(recognize_face, zoomed_face, track_id, current_frame, x1, y1, x2, y2)
 
-                try:
-                    result = DeepFace.find(zoomed_face, db_path=db_path, model_name="Facenet", enforce_detection=False)
-                    if len(result) > 0 and not result[0].empty:
-                        identity = result[0]["identity"][0].split("\\")[-2]
-                        recognized_faces[track_id] = identity
-                    else:
-                        recognized_faces[track_id] = "Bilinmiyor"
-                except Exception as e:
-                    recognized_faces[track_id] = "Hata"
-
-                # Güncellenen ID ve yüz merkezini kaydet
-                last_update_frame[track_id] = current_frame
-                face_center[track_id] = ((x1 + x2) // 2, (y1 + y2) // 2)
-                previous_track_id[track_id] = track_id
-
-            # Track ID'nin her durumda tanımlı olduğunu garantile
             text = recognized_faces.get(track_id, "Bilinmiyor")
 
             if zoomed_face is not None:
                 cv2.imshow(f"Zoomed Face - ID {track_id}", zoomed_face)
 
-            # Yüz etrafına dikdörtgen çiz ve kimliği ekrana yaz
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 1)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
 
             text_display = f"ID {track_id} - {text}"
             (text_width, text_height), baseline = cv2.getTextSize(text_display, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
-            cv2.rectangle(frame, (x1, y1 - text_height - baseline - 5), (x1 + text_width, y1), (0, 255, 0),
+            cv2.rectangle(frame, (x1, y1 - text_height - baseline - 5), (x1 + text_width, y1), (255, 0, 0),
                           thickness=-1)
-            cv2.putText(frame, text_display, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), thickness=1)
+            cv2.putText(frame, text_display, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), thickness=1)
 
         cv2.imshow("Face Tracking + Recognition", frame)
 
