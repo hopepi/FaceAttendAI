@@ -16,10 +16,10 @@ if __name__ == "__main__":
     )
     """
 
-    dataset_way = r"C:\Users\umutk\OneDrive\Belgeler\dataset"
+    dataset_way = r"C:\Users\umutk\OneDrive\Belgeler\Deneme\asd"
     augmentor.organize_dataset(
-        source_dir=r"C:\Users\umutk\OneDrive\Masaüstü\Data1\1",
-        target_dir=r"C:\Users\umutk\OneDrive\Belgeler\dataset",
+        source_dir=r"C:\Users\umutk\OneDrive\Masaüstü\Data1\2",
+        target_dir=r"C:\Users\umutk\OneDrive\Belgeler\Deneme\asd",
         image_size=(160,160)
     )
     augmentor.get_image_paths(dataset_path=dataset_way)

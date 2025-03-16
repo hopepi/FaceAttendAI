@@ -7,7 +7,6 @@ from sortAlgorithm.Tracking import FaceTracker
 from detection.YoloDetector import YOLODetector
 from virtualZoom.VirtualZoom import VirtualZoom
 
-# Veritabanı klasörü
 db_path = r"C:\Users\umutk\OneDrive\Belgeler\dataset"
 
 recognized_faces = {}
