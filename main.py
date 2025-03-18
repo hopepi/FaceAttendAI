@@ -7,7 +7,6 @@ from sortAlgorithm.Tracking import FaceTracker
 from detection.YoloDetector import YOLODetector
 from virtualZoom.VirtualZoom import VirtualZoom
 
-db_path = r"C:\Users\umutk\OneDrive\Belgeler\dataset"
 
 recognized_faces = {}
 face_center = {}
@@ -21,11 +20,11 @@ executor = ThreadPoolExecutor(max_workers=4)
 THRESHOLD = 0.5
 
 
-def recognize_face(zoomed_face, track_id, current_frame, x1, y1, x2, y2):
+def recognize_face(zoomed_face, track_id, current_frame, x1, y1, x2, y2,db_path,model_name):
     global recognized_faces, last_update_frame, face_center, processing_faces
 
     try:
-        result = DeepFace.find(zoomed_face, db_path=db_path, model_name="Facenet", enforce_detection=False)
+        result = DeepFace.find(zoomed_face, db_path=db_path, model_name=model_name, enforce_detection=False)
         identity = "Bilinmiyor"
 
         if len(result) > 0 and not result[0].empty:
@@ -101,7 +100,7 @@ def main():
                             [(x1 + x2) // 2, (y1 + y2) // 2])) > 30
                 ):
                     processing_faces.add(track_id)
-                    executor.submit(recognize_face, zoomed_face, track_id, current_frame, x1, y1, x2, y2)
+                    executor.submit(recognize_face, zoomed_face, track_id, current_frame, x1, y1, x2, y2,db_path=r"C:\Users\umutk\OneDrive\Belgeler\dataset",model_name="Facenet")
 
             text = recognized_faces.get(track_id, "Bilinmiyor")
 
