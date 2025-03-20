@@ -31,25 +31,23 @@ class VirtualZoom:
 
         self.frame_counts[track_id] += 1
 
-        # Eğer maksimum SS alındıysa bekleme sürecine gir
         if self.ss_per_id[track_id] >= self.max_ss_per_id:
             self.reset_frame_count[track_id] += 1
             print(
                 f"[Frame {current_frame}] [ID {track_id}] SS limiti aşıldı. {self.reset_frame_count[track_id]}/{self.reset_wait_time} frame bekleniyor.")
 
-            # Eğer bekleme süresi dolduysa SS sayısını sıfırla ve tekrar SS almaya başla
             if self.reset_frame_count[track_id] >= self.reset_wait_time:
                 self.ss_per_id[track_id] = 0
                 self.reset_frame_count[track_id] = 0
                 print(f"[Frame {current_frame}] [ID {track_id}] SS limiti sıfırlandı, tekrar kayıt alınabilir.")
 
-            return None  # Bekleme sürecindeyken SS almayı durdur
+            return None
 
         print(f"[Frame {current_frame}] [ID {track_id}] Bbox: {bbox}")
 
         x1, y1, x2, y2 = map(int, bbox)
         face_area = (x2 - x1) * (y2 - y1)
-        min_face_area = 625
+        min_face_area = 400
 
         if face_area < min_face_area:
             return None

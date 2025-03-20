@@ -22,29 +22,25 @@ THRESHOLD = 0.5
 
 def recognize_face(zoomed_face, track_id, current_frame, x1, y1, x2, y2,db_path,model_name):
     global recognized_faces, last_update_frame, face_center, processing_faces
+    result = DeepFace.find(zoomed_face, db_path=db_path, model_name=model_name, enforce_detection=False)
+    identity = "Bilinmiyor"
 
-    try:
-        result = DeepFace.find(zoomed_face, db_path=db_path, model_name=model_name, enforce_detection=False)
-        identity = "Bilinmiyor"
+    if len(result) > 0 and not result[0].empty:
+        min_distance = result[0]["distance"][0]
 
-        if len(result) > 0 and not result[0].empty:
-            min_distance = result[0]["distance"][0]
+        if min_distance < THRESHOLD:
+            identity = result[0]["identity"][0].split("\\")[-2]
+        else:
+            identity = "Bilinmiyor"
 
-            if min_distance < THRESHOLD:
-                identity = result[0]["identity"][0].split("\\")[-2]
-            else:
-                identity = "Bilinmiyor"
-
-        with lock:
-            recognized_faces[track_id] = identity
-            last_update_frame[track_id] = current_frame
-            face_center[track_id] = ((x1 + x2) // 2, (y1 + y2) // 2)
-            processing_faces.discard(track_id)
-
-    except Exception as e:
-        with lock:
-            recognized_faces[track_id] = "Hata"
-            processing_faces.discard(track_id)
+    with lock:
+        recognized_faces[track_id] = identity
+        last_update_frame[track_id] = current_frame
+        face_center[track_id] = ((x1 + x2) // 2, (y1 + y2) // 2)
+        processing_faces.discard(track_id)
+    with lock:
+        recognized_faces[track_id] = "Hata"
+        processing_faces.discard(track_id)
 
 
 def main():
@@ -100,7 +96,7 @@ def main():
                             [(x1 + x2) // 2, (y1 + y2) // 2])) > 30
                 ):
                     processing_faces.add(track_id)
-                    executor.submit(recognize_face, zoomed_face, track_id, current_frame, x1, y1, x2, y2,db_path=r"C:\Users\umutk\OneDrive\Belgeler\dataset",model_name="Facenet")
+                    executor.submit(recognize_face, zoomed_face, track_id, current_frame, x1, y1, x2, y2,db_path=r"C:\Users\umutk\OneDrive\Belgeler\dataset2",model_name="Facenet")
 
             text = recognized_faces.get(track_id, "Bilinmiyor")
 
