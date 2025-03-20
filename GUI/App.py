@@ -8,6 +8,8 @@ from tkinter import ttk, filedialog
 import threading
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
+import pandas as pd
+from datetime import datetime
 from deepface import DeepFace
 import cv2
 from detection.YoloDetector import YOLODetector
@@ -34,6 +36,7 @@ final_recognized = []
 summary_predictions = {}
 loading_embeddings = False
 database = ""
+selected_excel_file = None
 
 
 def recognize_face(zoomed_face, track_id, current_frame, x1, y1, x2, y2, db_path):
@@ -81,8 +84,6 @@ def recognize_face(zoomed_face, track_id, current_frame, x1, y1, x2, y2, db_path
             recognized_faces[track_id] = "Hata"
             processing_faces.discard(track_id)
 
-
-
 def generate_embeddings(dataset_path):
     global loading_embeddings
     loading_embeddings = True
@@ -119,8 +120,6 @@ def generate_embeddings(dataset_path):
 
     print(f"Embeddingler başarıyla kaydedildi: {embedding_file}")
     loading_embeddings = False
-
-
 
 def initialize_system():
     try:
@@ -204,6 +203,42 @@ def handle_recognition(
         executor_thread.submit(recognize_face, zoomed_face, track_id, current_frame, x1, y1, x2, y2, db_path)
 
 
+def save_summary_to_excel(summary_data):
+    global selected_excel_file
+    file_name = selected_excel_file if selected_excel_file else "Yoklama_Listesi.xlsx"
+
+    today_date = datetime.now().strftime("%Y-%m-%d")
+    new_entries = [{"İsim / Numara": str(identity).strip(), "Tarih": today_date} for identity in summary_data.values()]
+
+    df_new = pd.DataFrame(new_entries)
+
+    try:
+        df_existing = pd.read_excel(file_name, engine="openpyxl")
+
+        df_existing["İsim / Numara"] = df_existing["İsim / Numara"].fillna("").astype(str).str.strip()
+        df_existing["Tarih"] = pd.to_datetime(df_existing["Tarih"], errors="coerce").dt.strftime("%Y-%m-%d")
+
+        existing_students = set(zip(df_existing["İsim / Numara"], df_existing["Tarih"]))
+
+        filtered_new_entries = [
+            entry for entry in new_entries if (entry["İsim / Numara"], entry["Tarih"]) not in existing_students
+        ]
+
+        if not filtered_new_entries:
+            print("Tüm öğrenciler zaten kayıtlı, yeni ekleme yapılmadı.")
+            return
+
+        df_filtered = pd.DataFrame(filtered_new_entries)
+
+        df_final = pd.concat([df_existing, df_filtered], ignore_index=True)
+
+    except FileNotFoundError:
+        df_final = df_new
+
+    df_final.to_excel(file_name, index=False, engine="openpyxl")
+
+    print(f"Yoklama Excel dosyasına kaydedildi: {file_name}")
+
 def main_loop(mode="summary"):
     global loading_embeddings
 
@@ -229,84 +264,94 @@ def main_loop(mode="summary"):
 
     id_map = {}
     current_frame = 0
-    executor_thread = ThreadPoolExecutor(max_workers=2)
+    with ThreadPoolExecutor(max_workers=2) as executor_thread:
+        frame_counter = 0
+        if mode == "summary":
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret or frame is None:
+                    print("Kamera bağlantısı koptu, yeniden başlatılıyor")
+                    cap.release()
+                    cap = cv2.VideoCapture(0)
+                    continue
 
-    if mode == "summary":
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret or frame is None:
-                print("Kamera bağlantısı koptu, yeniden başlatılıyor")
-                cap.release()
-                cap = cv2.VideoCapture(0)
-                continue
+                frame = process_frame(frame, detector, tracker, zoom, id_map, current_frame, executor_thread)
 
-            frame = process_frame(frame, detector, tracker, zoom, id_map, current_frame, executor_thread)
+                if frame is not None and frame_counter % 3 == 0:
+                    cv2.imshow(f"Face Tracking + Recognition (Summary)", frame)
 
-            if frame is not None:
-                cv2.imshow(f"Face Tracking + Recognition (Summary)", frame)
+                current_frame += 1
+                frame_counter += 1
 
-            current_frame += 1
+                key = cv2.waitKey(1) & 0xFF
+                if key == 27:
+                    final_summary = {}
+                    for track_id, predictions in summary_predictions.items():
+                        most_common_prediction = max(set(predictions), key=predictions.count)
+                        final_summary[track_id] = most_common_prediction
 
-            key = cv2.waitKey(1) & 0xFF
-            if key == 27:
-                final_summary = {}
-                for track_id, predictions in summary_predictions.items():
-                    most_common_prediction = max(set(predictions), key=predictions.count)
-                    final_summary[track_id] = most_common_prediction
+                    if not final_summary:
+                        print("Hiç kimse tanınamadı! Veri setini ve yüz tanıma modelini kontrol et.")
+                        return None
 
-                print("\n--- Özet Çıkarılan Kişiler ---")
-                for track_id, identity in final_summary.items():
-                    print(f"ID {track_id}: {identity}")
-                print("-----------------------------------")
+                    print("\n--- Özet Çıkarılan Kişiler ---")
+                    for track_id, identity in final_summary.items():
+                        print(f"ID {track_id}: {identity}")
+                    print("-----------------------------------")
 
-                cap.release()
-                cv2.destroyAllWindows()
-                return final_summary
+                    save_summary_to_excel(final_summary)
+                    cap.release()
+                    cv2.destroyAllWindows()
+                    return final_summary
 
-        cap.release()
-        cv2.destroyAllWindows()
+            cap.release()
+            cv2.destroyAllWindows()
 
-    elif mode == "individual":
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret or frame is None:
-                continue
+        elif mode == "individual":
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret or frame is None:
+                    continue
 
-            frame = process_frame(frame, detector, tracker, zoom, id_map, current_frame, executor_thread)
+                frame = process_frame(frame, detector, tracker, zoom, id_map, current_frame, executor_thread)
 
-            if frame is not None:
-                cv2.imshow(f"Face Tracking + Recognition (Individual)", frame)
+                if frame is not None:
+                    cv2.imshow(f"Face Tracking + Recognition (Individual)", frame)
 
-            current_frame += 1
+                current_frame += 1
 
-            key = cv2.waitKey(1) & 0xFF
+                key = cv2.waitKey(1) & 0xFF
 
-            if key == ord('q'):
-                print("\n--- Tanımlanan Kişiler (Q Basıldı) ---")
-                for track_id, identity in recognized_faces.items():
-                    identity = recognized_faces.get(track_id, "Bilinmiyor")
+                if key == ord('q'):
+                    print("\n--- Tanımlanan Kişiler (Q Basıldı) ---")
+                    final_summary = {}
 
-                    if identity != "Bilinmiyor":
-                        existing_entry = next((entry for entry in final_recognized if entry[0] == track_id), None)
+                    for track_id, identity in recognized_faces.items():
+                        identity = recognized_faces.get(track_id, "Bilinmiyor")
 
-                        if existing_entry:
-                            final_recognized.remove(existing_entry)
-                            final_recognized.append((track_id, identity))
-                            print(f"ID {track_id}: {identity} Güncellendi")
-                        else:
-                            final_recognized.append((track_id, identity))
-                            print(f"ID {track_id}: {identity} Kaydedildi")
-                    else:
-                        print(f"ID {track_id}: {identity} Tanımlanamadı kaydedilmedi")
+                        if identity != "Bilinmiyor":
+                            existing_entry = next((entry for entry in final_recognized if entry[0] == track_id), None)
 
-                print("-----------------------------------")
+                            if existing_entry:
+                                final_recognized.remove(existing_entry)
+                                final_recognized.append((track_id, identity))
+                                print(f"ID {track_id}: {identity} Güncellendi")
+                            else:
+                                final_recognized.append((track_id, identity))
+                                print(f"ID {track_id}: {identity} Kaydedildi")
 
-            elif key == 27:
-                break
+                            final_summary[track_id] = identity
 
-        cap.release()
-        cv2.destroyAllWindows()
+                    print("-----------------------------------")
 
+                    if final_summary:
+                        save_summary_to_excel(final_summary)
+
+                elif key == 27:
+                    break
+
+    cap.release()
+    cv2.destroyAllWindows()
 
 def open_database():
     global database
@@ -317,13 +362,53 @@ def open_database():
         live_button.config(state="normal")
         individual_button.config(state="normal")
 
-def select_excel_file(label):
+def read_excel_file(file_path):
+    try:
+        if file_path.endswith(".xlsx"):
+            excel_file = pd.ExcelFile(file_path)
+            sheets = excel_file.sheet_names
+            print(f"Dosyadaki Sayfalar: {sheets}")
+
+            sheet_data = {}
+            for sheet in sheets:
+                df = excel_file.parse(sheet)
+                sheet_data[sheet] = df.head()
+                print(f"\nSayfa: {sheet}\n", df.head())
+                print("-" * 40)
+
+            return sheet_data
+
+        elif file_path.endswith(".csv"):
+            df = pd.read_csv(file_path)
+            print("\nCSV Dosyası İçeriği:\n", df.head())
+            print("-" * 40)
+            return {"CSV": df.head()}
+
+    except Exception as e:
+        print(f"Hata oluştu: {e}")
+        return None
+
+def select_excel_file(label, text_widget):
+    global selected_excel_file
     file_path = filedialog.askopenfilename(
         title="Kişiler Excel Dosyasını Seç",
         filetypes=[("Excel Dosyası", "*.xlsx"), ("CSV Dosyası", "*.csv"), ("Tüm Dosyalar", "*.*")]
     )
+
     if file_path:
+        selected_excel_file = file_path
         label.config(text=f"Seçilen Kişiler Dosyası:\n{file_path}")
+        sheet_data = read_excel_file(file_path)
+
+        if sheet_data:
+            text_widget.config(state="normal")
+            text_widget.delete(1.0, tk.END)
+
+            for sheet, df in sheet_data.items():
+                text_widget.insert(tk.END, f"\nSayfa: {sheet}\n")
+                text_widget.insert(tk.END, str(df) + "\n" + "-" * 40 + "\n")
+
+            text_widget.config(state="disabled")
 
 def open_live_summary():
     root.withdraw()
@@ -338,15 +423,15 @@ def open_live_summary():
     source_selection = ttk.Combobox(new_window, textvariable=selected_source, values=source_options, state="readonly")
     source_selection.pack(pady=5)
 
-    tk.Label(new_window, text="Ders İsmi:", font=("Helvetica", 10)).pack()
-    course_name_entry = tk.Entry(new_window, width=30)
-    course_name_entry.pack(pady=5)
-
     tk.Label(new_window, text="Kişiler Excel Dosyanızı Seçin:", font=("Helvetica", 10)).pack()
     excel_label = tk.Label(new_window, text="Henüz seçilmedi", font=("Helvetica", 10), fg="red")
     excel_label.pack(pady=5)
 
-    tk.Button(new_window, text="Kişiler Excel Dosyası Seç", command=lambda: select_excel_file(excel_label)).pack(pady=5)
+    text_widget = tk.Text(new_window, height=10, width=50, state="disabled")
+    text_widget.pack(pady=5)
+
+    tk.Button(new_window, text="Kişiler Excel Dosyası Seç",
+              command=lambda: select_excel_file(excel_label, text_widget)).pack(pady=5)
 
     start_button = tk.Button(new_window, text="İşlemleri Başlat", font=("Helvetica", 10, "bold"), fg="white", bg="green",
                              command=lambda: main_loop("summary"))
@@ -367,15 +452,15 @@ def open_individual_recognition():
     source_selection = ttk.Combobox(new_window, textvariable=selected_source, values=source_options, state="readonly")
     source_selection.pack(pady=5)
 
-    tk.Label(new_window, text="Ders İsmi:", font=("Helvetica", 10)).pack()
-    course_name_entry = tk.Entry(new_window, width=30)
-    course_name_entry.pack(pady=5)
-
     tk.Label(new_window, text="Kişiler Excel Dosyanızı Seçin:", font=("Helvetica", 10)).pack()
     excel_label = tk.Label(new_window, text="Henüz seçilmedi", font=("Helvetica", 10), fg="red")
     excel_label.pack(pady=5)
 
-    tk.Button(new_window, text="Kişiler Excel Dosyası Seç", command=lambda: select_excel_file(excel_label)).pack(pady=5)
+    text_widget = tk.Text(new_window, height=10, width=50, state="disabled")
+    text_widget.pack(pady=5)
+
+    tk.Button(new_window, text="Kişiler Excel Dosyası Seç",
+              command=lambda: select_excel_file(excel_label, text_widget)).pack(pady=5)
 
     start_button = tk.Button(new_window, text="İşlemleri Başlat", font=("Helvetica", 10, "bold"), fg="white", bg="green",
                              command=lambda: main_loop("individual"))
@@ -387,6 +472,7 @@ def reopen_main(window):
     window.destroy()
     root.deiconify()
 
+
 label = tk.Label(root, text="Hoşgeldiniz", font=("Helvetica", 14, "bold"))
 label.pack(pady=10)
 
@@ -396,7 +482,6 @@ database_button.pack(pady=10)
 database_label = tk.Label(root, text="Henüz klasör seçilmedi.", font=("Helvetica", 10), fg="red")
 database_label.pack(pady=5)
 database_label.selected_path = ""
-
 
 live_button = tk.Button(root, text="Canlı Özet Çıkarma", width=20, command=open_live_summary, state="disabled")
 live_button.pack(pady=10)

@@ -96,7 +96,7 @@ def main():
                             [(x1 + x2) // 2, (y1 + y2) // 2])) > 30
                 ):
                     processing_faces.add(track_id)
-                    executor.submit(recognize_face, zoomed_face, track_id, current_frame, x1, y1, x2, y2,db_path=r"C:\Users\umutk\OneDrive\Belgeler\dataset2",model_name="Facenet")
+                    executor.submit(recognize_face, zoomed_face, track_id, current_frame, x1, y1, x2, y2,db_path=r"C:\Users\umutk\OneDrive\Belgeler\dataset1",model_name="Facenet")
 
             text = recognized_faces.get(track_id, "Bilinmiyor")
 

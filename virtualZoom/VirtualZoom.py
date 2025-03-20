@@ -11,9 +11,9 @@ class VirtualZoom:
         self.last_saved_frame = {}
         self.ss_per_id = {}
         self.max_frame_gap = fps
-        self.max_ss_per_id = 20  # Maksimum kaç tane SS alınabilir
-        self.reset_wait_time = 150  # SS sınırına ulaştıktan sonra kaç frame bekleyecek (~5 saniye @30FPS)
-        self.reset_frame_count = {}  # Her ID için sıfırlama zamanlarını takip eden sözlük
+        self.max_ss_per_id = 20
+        self.reset_wait_time = 150
+        self.reset_frame_count = {}
 
     def detect_blur(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -27,7 +27,7 @@ class VirtualZoom:
             self.intervals[track_id] = 5
             self.last_saved_frame[track_id] = 0
             self.ss_per_id[track_id] = 0
-            self.reset_frame_count[track_id] = 0  # Reset için zaman tutucu
+            self.reset_frame_count[track_id] = 0
 
         self.frame_counts[track_id] += 1
 
@@ -84,7 +84,7 @@ class VirtualZoom:
 
             self.last_saved_frame[track_id] = current_frame
             self.ss_per_id[track_id] += 1
-            self.reset_frame_count[track_id] = 0  # SS alındığında bekleme sürecini sıfırla
+            self.reset_frame_count[track_id] = 0
 
             return zoom_face
 
