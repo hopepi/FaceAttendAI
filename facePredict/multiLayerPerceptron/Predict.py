@@ -7,7 +7,6 @@ from MLPDataLoader import load_data
 def predict_face(image_path, data_dir=r"C:\Users\umutk\OneDrive\Belgeler\dataset2"):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # class_names'i yükle
     _, _, class_names = load_data(data_dir)
     output_size = len(class_names)
 
@@ -35,5 +34,5 @@ def predict_face(image_path, data_dir=r"C:\Users\umutk\OneDrive\Belgeler\dataset
     predicted_id = predicted.item()
     predicted_name = class_names[predicted_id]
 
-    print(f"🔍 Tanımlanan Kişi: {predicted_name} (ID: {predicted_id})")
+    print(f"Tanımlanan Kişi: {predicted_name} (ID: {predicted_id})")
     return predicted_name

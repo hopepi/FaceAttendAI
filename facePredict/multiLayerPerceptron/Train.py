@@ -38,4 +38,4 @@ def train_model():
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss/len(train_loader):.4f}")
 
     torch.save(model.state_dict(), "mlp_face_model.pth")
-    print("✅ Model başarıyla kaydedildi.")
+    print("Model başarıyla kaydedildi.")

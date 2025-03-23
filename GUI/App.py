@@ -37,9 +37,15 @@ summary_predictions = {}
 loading_embeddings = False
 database = ""
 selected_excel_file = None
+deepFace_lock = threading.Lock()
 
 
-def recognize_face(zoomed_face, track_id, current_frame, x1, y1, x2, y2, db_path):
+def recognize_face(
+        zoomed_face,
+        track_id,
+        current_frame,
+        x1, y1, x2, y2,
+        db_path):
     global recognized_faces, last_update_frame, face_center, processing_faces, summary_predictions, loading_embeddings
 
     if loading_embeddings:
@@ -49,7 +55,8 @@ def recognize_face(zoomed_face, track_id, current_frame, x1, y1, x2, y2, db_path
     try:
         zoomed_face_rgb = cv2.cvtColor(zoomed_face, cv2.COLOR_BGR2RGB)
 
-        result = DeepFace.find(zoomed_face_rgb, db_path=db_path, model_name="Facenet", enforce_detection=False)
+        with deepFace_lock:
+            result = DeepFace.find(zoomed_face_rgb, db_path=db_path, model_name="Facenet", enforce_detection=False)
 
         identity = "Bilinmiyor"
 
@@ -137,7 +144,14 @@ def initialize_system():
 
     return cap, detector, tracker, zoom
 
-def process_frame(frame, detector, tracker, zoom, id_map, current_frame, executor_thread):
+def process_frame(
+        frame,
+        detector,
+        tracker,
+        zoom,
+        id_map,
+        current_frame,
+        executor_thread):
     width, height = 800, 600
     frame = cv2.resize(frame, (width, height))
     original_frame = frame.copy()
@@ -170,7 +184,10 @@ def process_frame(frame, detector, tracker, zoom, id_map, current_frame, executo
 
     return frame
 
-def draw_annotations(frame, x1, y1, x2, y2, track_id):
+def draw_annotations(
+        frame,
+        x1, y1, x2, y2,
+        track_id):
     text = recognized_faces.get(track_id, "Bilinmiyor")
 
     cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
@@ -283,7 +300,7 @@ def main_loop(mode="summary"):
                 current_frame += 1
                 frame_counter += 1
 
-                key = cv2.waitKey(1) & 0xFF
+                key = cv2.waitKey(10) & 0xFF
                 if key == 27:
                     final_summary = {}
                     for track_id, predictions in summary_predictions.items():
@@ -320,7 +337,7 @@ def main_loop(mode="summary"):
 
                 current_frame += 1
 
-                key = cv2.waitKey(1) & 0xFF
+                key = cv2.waitKey(10) & 0xFF
 
                 if key == ord('q'):
                     print("\n--- Tanımlanan Kişiler (Q Basıldı) ---")

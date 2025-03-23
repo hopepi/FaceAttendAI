@@ -28,4 +28,4 @@ def test_model():
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-    print(f"✅ Test Doğruluğu: {100 * correct / total:.2f}%")
+    print(f"Test Doğruluğu: {100 * correct / total:.2f}%")

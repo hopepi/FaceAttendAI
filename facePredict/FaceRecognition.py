@@ -181,12 +181,14 @@ def recognize_face(image_path):
         return "Bilinmiyor"
 
 
+"""
 load_embeddings()
 
 
-test_dataset_path = r"C:\Users\umutk\OneDrive\Belgeler\dataset"
+test_dataset_path = r""
 evaluate_accuracy(test_dataset_path)
 
-print("\n🔍 Tanıma Testi:")
+print("\nTanıma Testi:")
 test_result = recognize_face("umut.jpg")
-print("🎯 Tanıma Sonucu:", test_result)
+print("Tanıma Sonucu:", test_result)
+"""
