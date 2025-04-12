@@ -1,6 +1,7 @@
 import torch
 import torchvision.transforms as transforms
 from PIL import Image
+import torch.nn.functional as F
 from MLP import FaceMLP
 from MLPDataLoader import load_data
 
@@ -11,11 +12,11 @@ def predict_face(image_path, data_dir=r"C:\Users\umutk\OneDrive\Belgeler\dataset
     output_size = len(class_names)
 
     image_size = 160 * 160 * 3
-    hidden_size1 = 512
-    hidden_size2 = 256
+    hidden_size1 = 128
+    hidden_size2 = 64
 
     model = FaceMLP(image_size, hidden_size1, hidden_size2, output_size).to(device)
-    model.load_state_dict(torch.load("mlp_face_model.pth"))
+    model.load_state_dict(torch.load("best_model.pth"))
     model.eval()
 
     transform = transforms.Compose([
@@ -29,10 +30,15 @@ def predict_face(image_path, data_dir=r"C:\Users\umutk\OneDrive\Belgeler\dataset
 
     with torch.no_grad():
         output = model(image.view(image.size(0), -1))
-        _, predicted = torch.max(output, 1)
+        probabilities = F.softmax(output, dim=1)
+        max_prob, predicted = torch.max(probabilities, 1)
+
+    threshold = 0.2
+    if max_prob.item() < threshold:
+        print("Bu yüz veritabanında yok (tanınmadı).")
+        return "Bilinmeyen"
 
     predicted_id = predicted.item()
     predicted_name = class_names[predicted_id]
-
     print(f"Tanımlanan Kişi: {predicted_name} (ID: {predicted_id})")
     return predicted_name
