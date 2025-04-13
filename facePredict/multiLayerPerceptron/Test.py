@@ -13,7 +13,7 @@ def test_model():
     output_size = len(class_names)
 
     model = FaceMLP(image_size, hidden_size1, hidden_size2, output_size).to(device)
-    model.load_state_dict(torch.load("best_model.pth"))
+    model.load_state_dict(torch.load("../../GUI/best_model.pth"))
     model.eval()
 
     correct = 0

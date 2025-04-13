@@ -20,7 +20,7 @@ def train_model():
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     scheduler = StepLR(optimizer, step_size=10, gamma=0.5)
 
-    num_epochs = 50
+    num_epochs = 100
     best_loss = float('inf')
     patience = 10
     counter = 0
@@ -49,7 +49,7 @@ def train_model():
         if avg_loss < best_loss:
             best_loss = avg_loss
             counter = 0
-            torch.save(model.state_dict(), "best_model.pth")
+            torch.save(model.state_dict(), "../../GUI/best_model.pth")
             print("Yeni en iyi model kaydedildi.")
         else:
             counter += 1

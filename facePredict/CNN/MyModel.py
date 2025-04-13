@@ -1,16 +1,13 @@
 import threading
 from sklearn.metrics.pairwise import cosine_similarity
 import torch
-import torch.nn.functional as F
 import cv2
 from PIL import Image
 from detection.YoloDetector import YOLODetector
 from sortAlgorithm.Tracking import FaceTracker
 from virtualZoom.VirtualZoom import VirtualZoom
-from facePredict.FaceRecognition import (
+from facePredict.CNN.FaceRecognition import (
     Model as MyModel,
-    stored_embeddings,
-    transform,
     add_all_faces_to_db
 )
 
@@ -41,14 +38,14 @@ def initialize_system():
         return None, None, None, None
 
     cap = cv2.VideoCapture(0)
-    detector = YOLODetector("../models/yolov11s-face.pt")
+    detector = YOLODetector("../../models/yolov11s-face.pt")
     tracker = FaceTracker()
     zoom = VirtualZoom()
 
     return cap, detector, tracker, zoom
 
 def recognize_face(zoomed_face, track_id, current_frame, x1, y1, x2, y2, db_path, recognized_faces_dict):
-    from facePredict.FaceRecognition import transform, stored_embeddings, model as my_model
+    from facePredict.CNN.FaceRecognition import transform, stored_embeddings, model as my_model
 
     try:
         device = next(my_model.parameters()).device

@@ -5,7 +5,7 @@ from PIL import Image, ImageTk
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import numpy as np
-from facePredict.MyModel import initialize_system, recognize_face, generate_embeddings
+from facePredict.CNN.MyModel import initialize_system, recognize_face, generate_embeddings
 
 cap = None
 executor = ThreadPoolExecutor(max_workers=2)
