@@ -12,6 +12,9 @@ import torch
 import torchvision.transforms as transforms
 import torch.nn.functional as F
 from PIL import Image, ImageTk
+import pandas as pd
+from collections import defaultdict, Counter
+
 
 recognized_faces = {}
 face_center = {}
@@ -24,6 +27,10 @@ lock = threading.Lock()
 executor = ThreadPoolExecutor(max_workers=4)
 
 THRESHOLD = 0.2
+face_vote_counter = defaultdict(list)
+final_results = {}
+VOTE_THRESHOLD = 10
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -65,6 +72,19 @@ def recognize_face(zoomed_face, track_id, current_frame, x1, y1, x2, y2, db_path
         face_center[track_id] = ((x1 + x2) // 2, (y1 + y2) // 2)
         processing_faces.discard(track_id)
 
+    with lock:
+        face_vote_counter[track_id].append(identity)
+
+        if len(face_vote_counter[track_id]) >= VOTE_THRESHOLD and track_id not in final_results:
+            vote_counts = Counter(face_vote_counter[track_id])
+            most_common_name, count = vote_counts.most_common(1)[0]
+            final_results[track_id] = {
+                "name": most_common_name,
+                "total_votes": len(face_vote_counter[track_id]),
+                "vote_detail": dict(vote_counts)
+            }
+            print(f"[VOTE] ID {track_id} için baskın isim: {most_common_name} ({count}/{VOTE_THRESHOLD})")
+
     return similarity
 
 class FaceRecognitionApp:
@@ -88,7 +108,8 @@ class FaceRecognitionApp:
         self.class_names = get_class_names(self.db_path)
 
         self.model = FaceMLP(160 * 160 * 3, 128, 64, len(self.class_names)).to(device)
-        self.model.load_state_dict(torch.load("../../GUI/best_model.pth"))
+        model_path = os.path.abspath("C:\\Users\\umutk\\PycharmProjects\\FaceAttendAI\\facePredict\\multiLayerPerceptron\\best_model.pth")
+        self.model.load_state_dict(torch.load(model_path))
         self.model.eval()
 
         self.start_button = tk.Button(self.root, text="Kamerayı Başlat", command=self.start_camera)
@@ -114,7 +135,27 @@ class FaceRecognitionApp:
 
     def quit_app(self):
         self.stop_camera()
+        self.save_results_to_excel()
         self.root.quit()
+
+    def save_results_to_excel(self):
+        if not final_results:
+            print("Kayıt yok.")
+            return
+
+        rows = []
+        for track_id, data in final_results.items():
+            row = {
+                "ID": track_id,
+                "İsim": data["name"],
+                "Toplam Tahmin": data["total_votes"],
+                **{isim: sayi for isim, sayi in data["vote_detail"].items()}
+            }
+            rows.append(row)
+
+        df = pd.DataFrame(rows)
+        df.to_excel("yuz_tanima_sonuclari.xlsx", index=False)
+        print("Sonuçlar başarıyla kaydedildi.")
 
     def update_frame(self):
         ret, frame = self.video_source.read()

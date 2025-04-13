@@ -7,6 +7,7 @@ from MLPEmbedding import FaceEmbeddingMLP
 import os
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
 
 def train_model():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -29,6 +30,8 @@ def train_model():
     save_embeddings(train_loader, model, output_file="train_embeddings.pkl")
 
     num_epochs = 125
+    loss_values = []
+
     for epoch in range(num_epochs):
         model.train()
         total_loss = 0
@@ -45,36 +48,42 @@ def train_model():
 
             total_loss += loss.item()
 
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss/len(train_loader):.4f}")
+        avg_loss = total_loss / len(train_loader)
+        loss_values.append(avg_loss)
+
+        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {avg_loss:.4f}")
 
     torch.save(model.state_dict(), "face_embedding_mlp.pth")
     print("Model başarıyla kaydedildi.")
 
-
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(1, len(loss_values)+1), loss_values, marker='o', label='Training Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Epoch Başına Kayıp (Loss) Değeri')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
 
 
 def save_embeddings(data_loader, model, output_file="embeddings.pkl"):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # device tanımlaması
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     embeddings = []
     labels = []
 
-    # Modeli eval moduna alıyoruz
     model.eval()
-
     with torch.no_grad():
         for images, label in data_loader:
-            images = images.to(device)  # Modeli cihazda çalıştırmak için
+            images = images.to(device)
 
-            # Embedding çıkartma
-            embedding = model.resnet(images)  # Özellik çıkarma
-            embeddings.append(embedding.cpu().numpy())  # CPU'ya taşıyoruz
-            labels.append(label.cpu().numpy())  # Etiketleri de CPU'ya taşıyoruz
+            embedding = model.resnet(images)
+            embeddings.append(embedding.cpu().numpy())
+            labels.append(label.cpu().numpy())
 
-    # Embedding'leri ve etiketleri kaydediyoruz
     embeddings = np.concatenate(embeddings, axis=0)
     labels = np.concatenate(labels, axis=0)
 
-    # Kaydetme işlemi
     with open(output_file, 'wb') as f:
         pickle.dump((embeddings, labels), f)
 

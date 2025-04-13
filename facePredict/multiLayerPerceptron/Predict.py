@@ -16,7 +16,7 @@ def predict_face(image_path, data_dir=r"C:\Users\umutk\OneDrive\Belgeler\dataset
     hidden_size2 = 64
 
     model = FaceMLP(image_size, hidden_size1, hidden_size2, output_size).to(device)
-    model.load_state_dict(torch.load("../../GUI/best_model.pth"))
+    model.load_state_dict(torch.load("best_model.pth"))
     model.eval()
 
     transform = transforms.Compose([
