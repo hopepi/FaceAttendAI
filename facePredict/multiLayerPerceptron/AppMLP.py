@@ -1,4 +1,6 @@
 import tkinter as tk
+from datetime import datetime
+
 import cv2
 import numpy as np
 import os
@@ -20,7 +22,7 @@ recognized_faces = {}
 face_center = {}
 last_update_frame = {}
 processing_faces = set()
-lastSim=0
+predictList = {}
 
 lock = threading.Lock()
 
@@ -135,27 +137,40 @@ class FaceRecognitionApp:
 
     def quit_app(self):
         self.stop_camera()
-        self.save_results_to_excel()
+        self.save_similarity_to_excel(predictList)
         self.root.quit()
 
-    def save_results_to_excel(self):
-        if not final_results:
-            print("Kayıt yok.")
-            return
+    def save_similarity_to_excel(self,predict_list):
+        file_name = "Benzerlik_Skorlari.xlsx"
+        today_date = datetime.now().strftime("%Y-%m-%d")
 
-        rows = []
-        for track_id, data in final_results.items():
-            row = {
-                "ID": track_id,
-                "İsim": data["name"],
-                "Toplam Tahmin": data["total_votes"],
-                **{isim: sayi for isim, sayi in data["vote_detail"].items()}
-            }
-            rows.append(row)
+        entries = [{"İsim": name, "Benzerlik (%)": f"{score:.2f}", "Tarih": today_date} for name, score in
+                   predict_list.items()]
 
-        df = pd.DataFrame(rows)
-        df.to_excel("yuz_tanima_sonuclari.xlsx", index=False)
-        print("Sonuçlar başarıyla kaydedildi.")
+        df_new = pd.DataFrame(entries)
+
+        try:
+            df_existing = pd.read_excel(file_name, engine="openpyxl")
+
+            df_existing["İsim"] = df_existing["İsim"].fillna("").astype(str).str.strip()
+            df_existing["Tarih"] = pd.to_datetime(df_existing["Tarih"], errors="coerce").dt.strftime("%Y-%m-%d")
+
+            existing_entries = set(zip(df_existing["İsim"], df_existing["Tarih"]))
+
+            filtered_new = [entry for entry in entries if (entry["İsim"], entry["Tarih"]) not in existing_entries]
+
+            if not filtered_new:
+                print("Tüm benzerlik kayıtları zaten mevcut.")
+                return
+
+            df_filtered = pd.DataFrame(filtered_new)
+            df_final = pd.concat([df_existing, df_filtered], ignore_index=True)
+
+        except FileNotFoundError:
+            df_final = df_new
+
+        df_final.to_excel(file_name, index=False, engine="openpyxl")
+        print(f"Benzerlik skorları kaydedildi: {file_name}")
 
     def update_frame(self):
         ret, frame = self.video_source.read()
@@ -194,11 +209,12 @@ class FaceRecognitionApp:
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
             if similarity == 0:
-                global lastSim
-                text_display = f"ID {track_id} - {name} - {lastSim:.5f}%"
+                if name not in predictList:
+                    predictList[name] = 0.0
+                text_display = f"ID {track_id} - {name} - {predictList[name]:.5f}%"
             else:
-                lastSim = similarity * 100
-                text_display = f"ID {track_id} - {name} - {lastSim:.5f}%"
+                predictList[name] = similarity * 100
+                text_display = f"ID {track_id} - {name} - {predictList[name]:.5f}%"
             (text_width, text_height), baseline = cv2.getTextSize(text_display, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
             cv2.rectangle(frame, (x1, y1 - text_height - baseline - 5), (x1 + text_width, y1), (255, 0, 0), thickness=-1)
             cv2.putText(frame, text_display, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), thickness=1)

@@ -97,7 +97,7 @@ if __name__ == '__main__':
 
 
 
-    for epoch in range(20):
+    for epoch in range(50):
         total_loss = 0
         print(f"Epoch {epoch + 1} Başlıyor...")
 
@@ -133,7 +133,7 @@ if __name__ == '__main__':
         train_losses.append(avg_loss)
         print(f"Epoch {epoch + 1} Tamamlandı Ortalama Loss: {avg_loss:.8f}")
 
-    torch.save(model.state_dict(), "facenet_like_model.pth")
+    torch.save(model.state_dict(), "../../GUI/facenet_like_model.pth")
     print("Model kaydoldu")
 
     plt.plot(range(1, len(train_losses) + 1), train_losses, marker='o', linestyle='-')

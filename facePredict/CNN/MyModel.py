@@ -18,7 +18,7 @@ face_center = {}
 processing_faces = set()
 summary_predictions = {}
 lock = torch.mutex() if hasattr(torch, "mutex") else threading.Lock()
-THRESHOLD = 0.7
+THRESHOLD = 0.5
 
 
 def generate_embeddings(dataset_path):
@@ -38,7 +38,7 @@ def initialize_system():
         return None, None, None, None
 
     cap = cv2.VideoCapture(0)
-    detector = YOLODetector("../../models/yolov11s-face.pt")
+    detector = YOLODetector(r"C:\Users\umutk\PycharmProjects\FaceAttendAI\models\yolov11s-face.pt")
     tracker = FaceTracker()
     zoom = VirtualZoom()
 

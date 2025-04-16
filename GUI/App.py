@@ -31,7 +31,8 @@ face_center = {}
 last_update_frame = {}
 processing_faces = set()
 lock = threading.Lock()
-THRESHOLD = 0.7
+THRESHOLD = 0.22
+predictList = {}
 final_recognized = []
 summary_predictions = {}
 loading_embeddings = False
@@ -61,12 +62,23 @@ def recognize_face(
         identity = "Bilinmiyor"
 
         if len(result) > 0 and not result[0].empty:
-            min_distance = result[0]["distance"][0]
+            print("Eşleşme Adayları:")
+            print(result[0][["identity", "distance"]].head())
 
-            if min_distance < THRESHOLD:
+            min_distance = result[0]["distance"][0]
+            if min_distance < 0.085:
+                print(
+                    f"{track_id} için mesafe {min_distance:.4f} → Aşırı benzer ama şüpheli! Bilinmiyor olarak işaretlendi.")
+                identity = "Bilinmiyor"
+                predictList["Bilinmiyor"] = 0
+            elif min_distance < THRESHOLD:
                 identity = result[0]["identity"][0].split("\\")[-2]
+                similarity = (1 - min_distance) * 100
+                predictList[identity] = similarity
             else:
                 print(f"Tanıma başarısız!")
+                similarity = (1 - min_distance) * 100
+                predictList["Bilinmiyor"] = similarity
 
 
 
@@ -116,7 +128,7 @@ def generate_embeddings(dataset_path):
             img_path = os.path.join(person_path, img_file)
 
             try:
-                embedding = DeepFace.represent(img_path, model_name="Facenet", enforce_detection=False)
+                embedding = DeepFace.represent(img_path, model_name="Facenet", enforce_detection=True)
                 if embedding:
                     embeddings[person_name].append(embedding[0]["embedding"])
             except Exception as e:
@@ -184,18 +196,18 @@ def process_frame(
 
     return frame
 
-def draw_annotations(
-        frame,
-        x1, y1, x2, y2,
-        track_id):
-    text = recognized_faces.get(track_id, "Bilinmiyor")
+def draw_annotations(frame, x1, y1, x2, y2, track_id):
+    name = recognized_faces.get(track_id, "Bilinmiyor")
+    similarity = predictList.get(name, 0)
 
     cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
 
-    text_display = f"ID {track_id} - {text}"
+    text_display = f"ID {track_id} - {name} - {similarity:.2f}%"
+
     (text_width, text_height), baseline = cv2.getTextSize(text_display, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
     cv2.rectangle(frame, (x1, y1 - text_height - baseline - 5), (x1 + text_width, y1), (255, 0, 0), thickness=-1)
     cv2.putText(frame, text_display, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), thickness=1)
+
 
 def handle_recognition(
         zoomed_face,
